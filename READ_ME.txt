@@ -3,7 +3,7 @@
 This folder contains all notebooks and files for the retrieval, cleaning and production of the Sanctions Dataset for the INSA project.
 
 the INSA project aims at tracking all individual designations by the EU, US and the UK for entities such as persons, vessels, enterprises and companies.
-The temporal scope of the project is from 1995 to 2023 for thge USA and from 2005 to 2023 for the EU/ UK listings.
+The temporal scope of the project is from 1995 to 2023 for the USA and from 2005 to 2023 for the EU/ UK listings.
 
 The following data sources have been used to retrieve the original data from the country lists:
 
