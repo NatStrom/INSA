@@ -6,7 +6,7 @@ Conflict
 One-sided Violence:
 - https://ucdp.uu.se/apidocs/
 
-civil War:
+Protests and Riots:
 - ACLED
 
 Terrorism acts:
