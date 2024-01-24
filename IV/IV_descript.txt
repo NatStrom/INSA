@@ -1,0 +1,16 @@
+independent variables & their sources:
+
+Conflict
+- https://ucdp.uu.se/apidocs/
+
+One-sided Violence:
+- https://ucdp.uu.se/apidocs/
+
+Protests and Riots:
+- ACLED
+
+Terrorism acts:
+- Gobal terrorism index
+
+Coup d'etat:
+- https://databank.illinois.edu/datasets/IDB-3143201
