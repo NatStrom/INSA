@@ -90,4 +90,4 @@ print(WhoGov_grouped)
 
 ```
 
-Especially for the birthyear/deadyear variables the data coverage is not always perfect, so that in several countries the value is below 20 percent. Party and portfolio are better coverage and mostly at least above 75% coverage. 
+Especially for the birthyear and deadyear variables the data coverage is not always perfect, so that in several countries the value is below 20 percent. Party and portfolio are better coverage and mostly at least above 75% coverage. 
