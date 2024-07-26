@@ -9,20 +9,20 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Loading data set
+#  1. Loading data set
 
 ```{r}
 WhoGov_within <- read.csv("WhoGov_within_V2.0.csv")
 ```
 
-# Data wrangling
-## Splitting names 
+# 2. Data wrangling
+## 2.1 Splitting names 
 ```{r}
 WhoGov_within <- WhoGov_within %>%
   separate(name, into = c("First Name", "Last Name"), sep = " (?=[^ ]+$)", remove = FALSE)
 ```
 
-## Deleting special characters
+## 2.2 Deleting special characters
 ```{r}
 library(stringr)
 
@@ -33,7 +33,8 @@ replace_special_chars <- function(x) {
     "&" = "and",   
     "_" = " ",     
     "," = " ",     
-    "'" = ""      
+    "'" = "" ,
+    "�" = ""
   ))
 }
 
@@ -59,8 +60,8 @@ WhoGov_within <- WhoGov_within %>%
 ```
 
 
-# Preliminary descriptive statistics
-## Creating data grouped by country 
+# 3. Preliminary descriptive statistics
+## 3.1 Creating data grouped by country 
 ```{r}
 WhoGov_grouped <- group_by(WhoGov_within, country_isocode) %>%
   summarise(missing_birthyear = sum(is.na(birthyear)),
@@ -91,3 +92,17 @@ print(WhoGov_grouped)
 ```
 
 Especially for the birthyear and deadyear variables the data coverage is not always perfect, so that in several countries the value is below 20 percent. Party and portfolio are better coverage and mostly at least above 75% coverage. 
+
+# 4. Notes on the data
+## 4.1 Missing countries 
+Kiribati, Liechtenstein, Maledives, Marshall Islands, Micronesia, Monaco, Nauru, Palau, Samoa, San Marino, 
+Solomon Islands, Tuvalu, Vanuatu
+
+## 4.2 Cases of successors
+- West Germany codes as DEU (GDR as DDR)
+- Czechoslovakia: CZE Czechia as the successor state, transition 1993, SVK Slovakia
+- Yemen: YPR and YEM (North Yemen as the successor state)
+- Vietnam: VNM now, DVN & RVN until 1975/74
+- USSR: coded SUN; no successor state
+- Yug: no successor state
+
