@@ -32,7 +32,6 @@ replace_special_chars <- function(x) {
     "\\)" = " ",   
     "&" = "and",   
     "_" = " ",     
-    "," = " ",     
     "'" = "" ,
     "�" = ""
   ))
@@ -57,6 +56,12 @@ replace_min<- function(x) {
 WhoGov_within <- WhoGov_within %>%
   mutate_all(~ replace_min(.))
 
+```
+
+#2.3 changing party "unknown" to NA 
+```{r}
+WhoGov_within <- WhoGov_within %>%
+  mutate(party = ifelse(party == "unknown", NA, party))
 ```
 
 
@@ -103,6 +108,42 @@ Solomon Islands, Tuvalu, Vanuatu
 - Czechoslovakia: CZE Czechia as the successor state, transition 1993, SVK Slovakia
 - Yemen: YPR and YEM (North Yemen as the successor state)
 - Vietnam: VNM now, DVN & RVN until 1975/74
-- USSR: coded SUN; no successor state
-- Yug: no successor state
+- USSR: coded SUN; no successor state, 1966-1992: Russia, Ukraine, Belarus, Uzbekistan,  Kazakhstan, Georgia, Azerbaijan, Lithuania, Moldova, Latvia, Kyrgyzstan, Tajikistan, Armenia, Turkmenistan, Estonia
+- Yug: no successor state, existed from 1966 to 2002 in the data: Croatia, Serbia, Macedonia, Slovenia, Bosnia-Herzogovina, Montenegro
 
+AZE BLR EST KAZ KGZ LTU LVU LVA MDA RUS UZB 
+
+### 4.3 creating country_code_successor 
+```{r}
+WhoGov_within <- WhoGov_within %>% 
+  mutate(successor = case_when(
+    country_isocode == "SUN" ~ "AZE, BLR, EST, KAZ, KGZ, LTU, LVU, LVA, MDA, RUS, UZB",
+    country_isocode == "YUG" & year < 1992 ~ "BIH, HRV, MKD, MNE, SRB, SVN",
+    country_isocode == "YUG" & year >= 1992 & year < 1995 ~ "MKD, MNE, SRB", 
+    country_isocode == "YUG" & year >= 1995 & year < 1997 ~ "NA", 
+    country_isocode == "YPR" ~ "YEM",
+    country_isocode == "ZAF" & year <= 1980 ~ "ZBW, NAM",
+    country_isocode == "ZAF" & year >= 1981 & year <= 1989 ~ "NAM",
+    country_isocode == "SDN" & year <= 2011 ~ "SSD", 
+    country_isocode == "ETH" & year <= 1992 ~ "ERI", 
+    country_isocode == "IDN" & year >= 1975 & year <= 2001 ~ "TLS",
+    
+    TRUE ~ country_isocode
+    ))
+
+Serbia <- subset(WhoGov_within, WhoGov_within$country_isocode == "SRB" | WhoGov_within$country_isocode == "YUG" | WhoGov_within$country_isocode == "MNE")
+Serbia_95 <- subset(Serbia, Serbia$year > 1995 & Serbia$year < 2002)
+```
+
+ Creating the successor variable with information on countries which will succeed the still existing state. 
+
+# 5. Writing preliminary csv.file  
+```{r}
+write.csv(WhoGov_within, "WhoGov_updated_v1.0.csv")
+```
+ 
+```{r}
+table(WhoGov_within$year)
+```
+ 
+ 
