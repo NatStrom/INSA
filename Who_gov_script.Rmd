@@ -104,12 +104,15 @@ Kiribati, Liechtenstein, Maledives, Marshall Islands, Micronesia, Monaco, Nauru,
 Solomon Islands, Tuvalu, Vanuatu
 
 ## 4.2 Cases of successors
-- West Germany codes as DEU (GDR as DDR)
+- West Germany codes as DEU (DEU as DDR)
 - Czechoslovakia: CZE Czechia as the successor state, transition 1993, SVK Slovakia
 - Yemen: YPR and YEM (North Yemen as the successor state)
 - Vietnam: VNM now, DVN & RVN until 1975/74
 - USSR: coded SUN; no successor state, 1966-1992: Russia, Ukraine, Belarus, Uzbekistan,  Kazakhstan, Georgia, Azerbaijan, Lithuania, Moldova, Latvia, Kyrgyzstan, Tajikistan, Armenia, Turkmenistan, Estonia
 - Yug: no successor state, existed from 1966 to 2002 in the data: Croatia, Serbia, Macedonia, Slovenia, Bosnia-Herzogovina, Montenegro
+- Eritrea as secession of Ethiopia in 1993
+- Namibia (1989) and Zimbabwe (1981) from South Africa
+- South Sudan secession in 2012
 
 AZE BLR EST KAZ KGZ LTU LVU LVA MDA RUS UZB 
 
@@ -122,12 +125,15 @@ WhoGov_within <- WhoGov_within %>%
     country_isocode == "YUG" & year >= 1992 & year < 1995 ~ "MKD, MNE, SRB", 
     country_isocode == "YUG" & year >= 1995 & year < 1997 ~ "NA", 
     country_isocode == "YPR" ~ "YEM",
-    country_isocode == "ZAF" & year <= 1980 ~ "ZBW, NAM",
-    country_isocode == "ZAF" & year >= 1981 & year <= 1989 ~ "NAM",
-    country_isocode == "SDN" & year <= 2011 ~ "SSD", 
-    country_isocode == "ETH" & year <= 1992 ~ "ERI", 
-    country_isocode == "IDN" & year >= 1975 & year <= 2001 ~ "TLS",
-    
+    country_isocode == "ZAF" & year <= 1980 ~ "ZAF, ZBW, NAM",
+    country_isocode == "ZAF" & year >= 1981 & year <= 1989 ~ "ZAF, NAM",
+    country_isocode == "SDN" & year <= 2011 ~ "SDN, SSD", 
+    country_isocode == "ETH" & year <= 1992 ~ "ETH, ERI", 
+    country_isocode == "IDN" & year >= 1975 & year <= 2001 ~ "IDN, TLS",
+    country_isocode == "CZE" & year <= 1992 ~ "CZE, SVK",
+    country_isocode == "RVN" & year <= 1975 ~ "DVN, VNM",
+    country_isocode == "DVN" & year >= 1976 ~ "VNM",
+    country_isocode == "DDR" & year <= 1989 ~ "DEU",
     TRUE ~ country_isocode
     ))
 
@@ -142,8 +148,9 @@ Serbia_95 <- subset(Serbia, Serbia$year > 1995 & Serbia$year < 2002)
 write.csv(WhoGov_within, "WhoGov_updated_v1.0.csv")
 ```
  
+## 5.1 updated version including the expansion of the successor variable for Eritrea, South Sudan, Namibia, Zimbabwe, Yemen, Slovakia and Timor-Leste
 ```{r}
-table(WhoGov_within$year)
+write.csv(WhoGov_within, "WhoGov_updated_v.1.2.csv")
 ```
  
  
