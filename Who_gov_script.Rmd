@@ -1,0 +1,156 @@
+---
+title: "WhoGov_script"
+author: "Domenic Hög"
+date: "2024-06-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#  1. Loading data set
+
+```{r}
+WhoGov_within <- read.csv("WhoGov_within_V2.0.csv")
+```
+
+# 2. Data wrangling
+## 2.1 Splitting names 
+```{r}
+WhoGov_within <- WhoGov_within %>%
+  separate(name, into = c("First Name", "Last Name"), sep = " (?=[^ ]+$)", remove = FALSE)
+```
+
+## 2.2 Deleting special characters
+```{r}
+library(stringr)
+
+replace_special_chars <- function(x) {
+  str_replace_all(x, c(
+    "\\(" = " ",   
+    "\\)" = " ",   
+    "&" = "and",   
+    "_" = " ",     
+    "'" = "" ,
+    "�" = ""
+  ))
+}
+
+WhoGov_within <- WhoGov_within %>%
+  mutate_all(~ replace_special_chars(.))
+
+# Forgotthe hyphens
+replace_hyphens <- function(x) {
+  str_replace_all(x, "-", " ")
+}
+
+WhoGov_within <- WhoGov_within %>%
+  mutate_all(~ replace_hyphens(.))
+
+# Replacing the Min. by Minister
+replace_min<- function(x) {
+  str_replace_all(x, "Min\\.", "Minister")
+}
+
+WhoGov_within <- WhoGov_within %>%
+  mutate_all(~ replace_min(.))
+
+```
+
+#2.3 changing party "unknown" to NA 
+```{r}
+WhoGov_within <- WhoGov_within %>%
+  mutate(party = ifelse(party == "unknown", NA, party))
+```
+
+
+# 3. Preliminary descriptive statistics
+## 3.1 Creating data grouped by country 
+```{r}
+WhoGov_grouped <- group_by(WhoGov_within, country_isocode) %>%
+  summarise(missing_birthyear = sum(is.na(birthyear)),
+    actual_birthyear = sum(!is.na(birthyear)),
+    missing_deadyear = sum(is.na(deadyear)),
+    actual_deadyear = sum(!is.na(deadyear)),
+    missing_name = sum(is.na(name)),
+    actual_name = sum(!is.na(name)),
+    missing_gender = sum(is.na(gender)),
+    actual_gender = sum(!is.na(gender)),
+    missing_position = sum(is.na(position)),
+    actual_position = sum(!is.na(position)),
+    missing_party = sum(is.na(party) | party == "unknown"),
+    actual_party = sum(!is.na(party) & party != "unknown"),
+    missing_portfolio_1 = sum(is.na(portfolio_1)),
+    actual_portfolio_1 = sum(!is.na(portfolio_1))) %>%
+  mutate(percent_birthyear = (actual_birthyear / (actual_birthyear + missing_birthyear)) * 100,
+    percent_deadyear = (actual_deadyear / (actual_deadyear + missing_deadyear)) * 100,
+    percent_name = (actual_name / (actual_name + missing_name)) * 100,
+    percent_gender = (actual_gender / (actual_gender + missing_gender)) * 100,
+    percent_position = (actual_position / (actual_position + missing_position)) * 100,
+    percent_party = (actual_party / (actual_party + missing_party)) * 100,
+    percent_portfolio_1 = (actual_portfolio_1 / (actual_portfolio_1 + missing_portfolio_1)) * 100
+  )
+
+print(WhoGov_grouped)
+
+```
+
+Especially for the birthyear and deadyear variables the data coverage is not always perfect, so that in several countries the value is below 20 percent. Party and portfolio are better coverage and mostly at least above 75% coverage. 
+
+# 4. Notes on the data
+## 4.1 Missing countries 
+Kiribati, Liechtenstein, Maledives, Marshall Islands, Micronesia, Monaco, Nauru, Palau, Samoa, San Marino, 
+Solomon Islands, Tuvalu, Vanuatu
+
+## 4.2 Cases of successors
+- West Germany codes as DEU (DEU as DDR)
+- Czechoslovakia: CZE Czechia as the successor state, transition 1993, SVK Slovakia
+- Yemen: YPR and YEM (North Yemen as the successor state)
+- Vietnam: VNM now, DVN & RVN until 1975/74
+- USSR: coded SUN; no successor state, 1966-1992: Russia, Ukraine, Belarus, Uzbekistan,  Kazakhstan, Georgia, Azerbaijan, Lithuania, Moldova, Latvia, Kyrgyzstan, Tajikistan, Armenia, Turkmenistan, Estonia
+- Yug: no successor state, existed from 1966 to 2002 in the data: Croatia, Serbia, Macedonia, Slovenia, Bosnia-Herzogovina, Montenegro
+- Eritrea as secession of Ethiopia in 1993
+- Namibia (1989) and Zimbabwe (1981) from South Africa
+- South Sudan secession in 2012
+
+AZE BLR EST KAZ KGZ LTU LVU LVA MDA RUS UZB 
+
+### 4.3 creating country_code_successor 
+```{r}
+WhoGov_within <- WhoGov_within %>% 
+  mutate(successor = case_when(
+    country_isocode == "SUN" ~ "AZE, BLR, EST, KAZ, KGZ, LTU, LVU, LVA, MDA, RUS, UZB",
+    country_isocode == "YUG" & year < 1992 ~ "BIH, HRV, MKD, MNE, SRB, SVN",
+    country_isocode == "YUG" & year >= 1992 & year < 1995 ~ "MKD, MNE, SRB", 
+    country_isocode == "YUG" & year >= 1995 & year < 1997 ~ "NA", 
+    country_isocode == "YPR" ~ "YEM",
+    country_isocode == "ZAF" & year <= 1980 ~ "ZAF, ZBW, NAM",
+    country_isocode == "ZAF" & year >= 1981 & year <= 1989 ~ "ZAF, NAM",
+    country_isocode == "SDN" & year <= 2011 ~ "SDN, SSD", 
+    country_isocode == "ETH" & year <= 1992 ~ "ETH, ERI", 
+    country_isocode == "IDN" & year >= 1975 & year <= 2001 ~ "IDN, TLS",
+    country_isocode == "CZE" & year <= 1992 ~ "CZE, SVK",
+    country_isocode == "RVN" & year <= 1975 ~ "DVN, VNM",
+    country_isocode == "DVN" & year >= 1976 ~ "VNM",
+    country_isocode == "DDR" & year <= 1989 ~ "DEU",
+    TRUE ~ country_isocode
+    ))
+
+Serbia <- subset(WhoGov_within, WhoGov_within$country_isocode == "SRB" | WhoGov_within$country_isocode == "YUG" | WhoGov_within$country_isocode == "MNE")
+Serbia_95 <- subset(Serbia, Serbia$year > 1995 & Serbia$year < 2002)
+```
+
+ Creating the successor variable with information on countries which will succeed the still existing state. 
+
+# 5. Writing preliminary csv.file  
+```{r}
+write.csv(WhoGov_within, "WhoGov_updated_v1.0.csv")
+```
+ 
+## 5.1 updated version including the expansion of the successor variable for Eritrea, South Sudan, Namibia, Zimbabwe, Yemen, Slovakia and Timor-Leste
+```{r}
+write.csv(WhoGov_within, "WhoGov_updated_v.1.2.csv")
+```
+ 
+ 

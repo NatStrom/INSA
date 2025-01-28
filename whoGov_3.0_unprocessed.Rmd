@@ -1,0 +1,383 @@
+---
+title: "WhoGov_3.0"
+author: "Domenic Hög"
+date: "2024-08-28"
+output: html_document
+---
+# Loading the version 3.0 of the WhoGov dataset
+```{r}
+WhoGov_v.3 <- read_excel("WhoGov_within_V3.0.xlsx")
+```
+
+# 2. Data wrangling
+## 2.1 Splitting names 
+```{r}
+WhoGov_v.3 <- WhoGov_v.3 %>%
+  separate(name, into = c("first_name", "last_name"), sep = " (?=[^ ]+$)", remove = FALSE) 
+```
+
+## 2.2 Deleting special characters
+```{r}
+library(stringr)
+
+replace_special_chars <- function(x) {
+  str_replace_all(x, c(
+    "\\(" = " ",   
+    "\\)" = " ",   
+    "&" = "and",   
+    "_" = " ",     
+    "'" = "" ,
+    "�" = ""
+  ))
+}
+
+WhoGov_v.3 <- WhoGov_v.3 %>%
+  mutate_all(~ replace_special_chars(.))
+
+# Forgotthe hyphens
+replace_hyphens <- function(x) {
+  str_replace_all(x, "-", " ")
+}
+
+WhoGov_v.3 <- WhoGov_v.3 %>%
+  mutate_all(~ replace_hyphens(.))
+
+# Replacing the Min. by Minister
+replace_min<- function(x) {
+  str_replace_all(x, "Min\\.", "Minister")
+}
+
+WhoGov_v.3 <- WhoGov_v.3 %>%
+  mutate_all(~ replace_min(.))
+
+```
+
+
+#2.3 changing party "unknown" to NA 
+```{r}
+WhoGov_v.3 <- WhoGov_v.3 %>%
+  mutate(party = ifelse(party == "unknown", NA, party))
+```
+
+
+# 3. Preliminary descriptive statistics
+## 3.1 Creating data grouped by country 
+```{r}
+WhoGov_grouped_v3 <- group_by(WhoGov_v.3, country_isocode) %>%
+  summarise(missing_birthyear = sum(is.na(birthyear)),
+    actual_birthyear = sum(!is.na(birthyear)),
+    missing_deadyear = sum(is.na(deadyear)),
+    actual_deadyear = sum(!is.na(deadyear)),
+    missing_name = sum(is.na(name)),
+    actual_name = sum(!is.na(name)),
+    missing_gender = sum(is.na(gender)),
+    actual_gender = sum(!is.na(gender)),
+    missing_position = sum(is.na(position)),
+    actual_position = sum(!is.na(position)),
+    missing_party = sum(is.na(party) | party == "unknown"),
+    actual_party = sum(!is.na(party) & party != "unknown"),
+    missing_portfolio_1 = sum(is.na(portfolio_1)),
+    actual_portfolio_1 = sum(!is.na(portfolio_1))) %>%
+  mutate(percent_birthyear = (actual_birthyear / (actual_birthyear + missing_birthyear)) * 100,
+    percent_deadyear = (actual_deadyear / (actual_deadyear + missing_deadyear)) * 100,
+    percent_name = (actual_name / (actual_name + missing_name)) * 100,
+    percent_gender = (actual_gender / (actual_gender + missing_gender)) * 100,
+    percent_position = (actual_position / (actual_position + missing_position)) * 100,
+    percent_party = (actual_party / (actual_party + missing_party)) * 100,
+    percent_portfolio_1 = (actual_portfolio_1 / (actual_portfolio_1 + missing_portfolio_1)) * 100
+  )
+
+print(WhoGov_grouped_v3)
+```
+
+
+# 4. Notes on the data
+## 4.1 Missing countries 
+Kiribati, Liechtenstein, Maledives, Marshall Islands, Micronesia, Monaco, Nauru, Palau, Samoa, San Marino, 
+Solomon Islands, Tuvalu, Vanuatu
+
+## 4.2 Cases of successors
+- West Germany codes as DEU (DEU as DDR)
+- Czechoslovakia: CZE Czechia as the successor state, transition 1993, SVK Slovakia
+- Yemen: YPR and YEM (North Yemen as the successor state)
+- Vietnam: VNM now, DVN & RVN until 1975/74
+- USSR: coded SUN; no successor state, 1966-1992: Russia, Ukraine, Belarus, Uzbekistan,  Kazakhstan, Georgia, Azerbaijan, Lithuania, Moldova, Latvia, Kyrgyzstan, Tajikistan, Armenia, Turkmenistan, Estonia
+- Yug: no successor state, existed from 1966 to 2002 in the data: Croatia, Serbia, Macedonia, Slovenia, Bosnia-Herzogovina, Montenegro
+- Eritrea as secession of Ethiopia in 1993
+- Namibia (1989) and Zimbabwe (1981) from South Africa
+- South Sudan secession in 2012
+
+AZE BLR EST KAZ KGZ LTU LVU LVA MDA RUS UZB 
+
+### 4.3 creating country_code_successor 
+```{r}
+WhoGov_v.3 <- WhoGov_v.3 %>% 
+  mutate(successor = case_when(
+    country_isocode == "SUN" ~ "AZE, BLR, EST, KAZ, KGZ, LTU, LVU, LVA, MDA, RUS, UZB",
+    country_isocode == "YUG" & year < 1992 ~ "BIH, HRV, MKD, MNE, SRB, SVN",
+    country_isocode == "YUG" & year >= 1992 & year < 1995 ~ "MKD, MNE, SRB", 
+    country_isocode == "YUG" & year >= 1995 & year < 1997 ~ "NA", 
+    country_isocode == "YPR" ~ "YEM",
+    country_isocode == "ZAF" & year <= 1980 ~ "ZAF, ZBW, NAM",
+    country_isocode == "ZAF" & year >= 1981 & year <= 1989 ~ "ZAF, NAM",
+    country_isocode == "SDN" & year <= 2011 ~ "SDN, SSD", 
+    country_isocode == "ETH" & year <= 1992 ~ "ETH, ERI", 
+    country_isocode == "IDN" & year >= 1975 & year <= 2001 ~ "IDN, TLS",
+    country_isocode == "CZE" & year <= 1992 ~ "CZE, SVK",
+    country_isocode == "RVN" & year <= 1975 ~ "DVN, VNM",
+    country_isocode == "DVN" & year >= 1976 ~ "VNM",
+    country_isocode == "DDR" & year <= 1989 ~ "DEU",
+    TRUE ~ country_isocode
+    ))
+
+Serbia <- subset(WhoGov_v.3, WhoGov_v.3$country_isocode == "SRB" | WhoGov_v.3$country_isocode == "YUG" | WhoGov_v.3$country_isocode == "MNE")
+Serbia_95 <- subset(Serbia, Serbia$year > 1995 & Serbia$year < 2002)
+```
+
+# 4. Adding information on system type using WhoGov_crosssectional_V3.0
+## 4.1  Loading the cross-sectional data to include regime type
+```{r}
+cross_sectional <- read_excel("WhoGov_crosssectional_V3.0.xlsx")
+```
+
+## 4.2  Removing all variables despite year, country_isocode,system_category
+```{r}
+cross_sectional <- cross_sectional %>%
+  select(year, country_isocode, system_category)
+```
+
+## 4.3 Merging the cross-sectional data with the WhoGov_v.3 data using left join
+```{r}
+WhoGov_v.3 <- left_join(WhoGov_v.3, cross_sectional, by = c("year", "country_isocode"))
+```
+
+# 5.  Creating a variable id_2 for the dataset
+Creating a unique identifier for each observation
+```{r}
+WhoGov_v.3 <- WhoGov_v.3 %>%
+  mutate(id_2 = row_number())
+max(WhoGov_v.3$id_2)
+```
+
+# 6.  Creating months variable for every observation and splitting every observation into twelve rows for every month
+```{r}
+WhoGov_v.3_month <- WhoGov_v.3 %>%
+  slice(rep(1:n(), each = 12)) %>%
+  # Create the `month` column with values from 1 to 12
+  mutate(month = rep(1:12, times = nrow(WhoGov_v.3)) %>% factor(levels = 1:12))
+```
+
+# 7. Creating variable core_other for WhoGov_v.3
+```{r}
+WhoGov_v.3 <- WhoGov_v.3 %>%
+  mutate(core_other = ifelse(core == 1 & minister == 0 & leader == 0, 1, 0))
+```
+
+## 7.2 Creating variable core_non_minister for WhoGov_v.3_month
+```{r}
+WhoGov_v.3_month <- WhoGov_v.3_month %>%
+  mutate(core_other = ifelse(core == 1 & minister == 0 & leader == 0, 1, 0))
+```
+
+
+# 8. Writitng csv.file for version 3.0, using WhoGov_v.3_month
+```{r}
+write.csv(WhoGov_v.3_month, "WhoGov_updated_v3.0.csv")
+```
+
+# 9. Descriptive statistics
+## 9.1 overview political ranks covered
+```{r}
+table(WhoGov_v.3$core, useNA = "ifany") 
+table(WhoGov_v.3$minister, useNA = "ifany")
+table(WhoGov_v.3$classification, useNA = "ifany")
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+full_data_v3 <- WhoGov_v.3 %>%
+  group_by(classification) %>%
+  summarize(count = n())  
+
+
+v3 <- ggplot(full_data_v3, aes(y = reorder(classification, count), x = count)) + 
+  geom_bar(stat = "identity", width = 0.8) +  
+  scale_x_log10(labels = comma, breaks = c(1, 10, 
+                                            100, 
+                                            1000, 
+                                            5000, 100000)) +  
+    geom_text(aes(label = count), 
+            position = position_stack(vjust = 1), 
+            hjust = -0.1, color = "black") +
+  labs(title = "Political ranks of research entities",
+       x = "Number of entries (log)",
+       y = "Classification") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8),  
+        axis.title.x = element_text(size = 12), 
+        axis.title.y = element_text(size = 12))
+
+ggsave("Political_ranks_v3.png", plot = v3, width = 20, height = 10, dpi = 300)
+```
+
+## 9.2 Gender distribution 
+```{r}
+options(scipen = 999)
+table(WhoGov_v.3$gender, useNA = "ifany")
+prop.table(table(WhoGov_v.3$gender))
+
+table(WhoGov_v.3$core)
+prop.table(table(WhoGov_v.3$gender, WhoGov_v.3$core),2)
+
+ggplot(WhoGov_v.3 %>% filter(gender %in% c("Male", "Female")), aes(x = "", fill = gender)) + 
+  geom_bar(width = 1) +
+  coord_polar(theta = "y") + 
+  geom_text(stat = "count", aes(label = percent(after_stat(count) / sum(after_stat(count)))), 
+            position = position_stack(vjust = 0.5)) +
+  theme_void() +
+  theme(legend.position = "right")
+
+ggplot(WhoGov_v.3 %>% filter(gender %in% c("Male", "Female")), aes(x = "", fill = gender)) + 
+  geom_bar(width = 1) +
+  coord_polar(theta = "y") + 
+  geom_text(stat = "count", aes(label = sprintf("%.2f%%", after_stat(count) / sum(after_stat(count)) * 100)), 
+            position = position_stack(vjust = 0.5)) +
+  theme_void() +
+  theme(legend.position = "right")
+
+
+```
+
+
+## 9.3 overview missings for descriptive statistics
+```{r}
+summary(WhoGov_grouped_v3$percent_birthyear)
+summary(WhoGov_grouped_v3$percent_deadyear)
+summary(WhoGov_grouped_v3$percent_name)
+summary(WhoGov_grouped_v3$percent_gender)
+summary(WhoGov_grouped_v3$percent_position)
+summary(WhoGov_grouped_v3$percent_party)
+summary(WhoGov_grouped_v3$percent_portfolio_1)
+
+```
+
+
+```{r}
+variablen_v3 <- c("percent_birthyear", "percent_deadyear", "percent_name", "percent_gender", "percent_position", "percent_party", "percent_portfolio_1")
+
+
+zusammenfassungen_v3 <- sapply(variablen_v3, function(var) summary(WhoGov_grouped_v3[[var]]))
+
+zusammenfassung_df_v3 <- as.data.frame(zusammenfassungen_v3)
+
+print(zusammenfassung_df_v3)
+
+library(knitr)
+
+stats_summary_v3 <- WhoGov_grouped_v3 %>%
+  summarise(
+    Mean_BirthYear = mean(percent_birthyear, na.rm = TRUE),
+    Mean_DeadYear = mean(percent_deadyear, na.rm = TRUE),
+    Mean_Name = mean(percent_name, na.rm = TRUE),
+    Mean_Gender = mean(percent_gender, na.rm = TRUE),
+    Mean_Position = mean(percent_position, na.rm = TRUE),
+    Mean_Party = mean(percent_party, na.rm = TRUE),
+    Mean_Portfolio1 = mean(percent_portfolio_1, na.rm = TRUE),
+  )
+
+stats_long_v3 <- stats_summary_v3 %>%
+  pivot_longer(everything(), names_to = c(".value", "Stat"), names_pattern = "(.*)_(.*)")
+
+kable(stats_long_v3, format = "markdown", col.names = c("Variable", "Mean"), caption = "Percentage of true values per variable")
+```
+
+## 9.4 Overview of variable lenghts 
+```{r}
+length(unique(WhoGov_v.3$country_isocode))
+length(unique(WhoGov_v.3$position))
+length(unique(WhoGov_v.3$party))
+length(unique(WhoGov_v.3$name))
+nrow(WhoGov_v.3)
+max(WhoGov_v.3$year)
+```
+
+
+## 9.5 Overview of entries per country
+```{r}
+WhoGov_v.3 %>%
+  group_by(country_isocode) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+```
+
+
+## 9.6 Overview distribution minister/leader/core
+```{r}
+table(WhoGov_v.3$core)
+table(WhoGov_v.3$minister)
+table(WhoGov_v.3$leader)
+prop.table(table(WhoGov_v.3$core))
+prop.table(table(WhoGov_v.3$minister))
+prop.table(table(WhoGov_v.3$leader))
+prop.table(table(WhoGov_v.3$core, WhoGov_v.3$gender),1)
+prop.table(table(WhoGov_v.3$minister, WhoGov_v.3$gender),1)
+prop.table(table(WhoGov_v.3$leader, WhoGov_v.3$gender),1) 
+```
+
+## 9.7 Overview of the system categories
+```{r}
+table(WhoGov_v.3$system_category)
+prop.table(table(WhoGov_v.3$system_category))
+```
+
+## 9.8 Overview of the core_other variable, including division gender
+```{r}
+table(WhoGov_v.3$core_other)
+prop.table(table(WhoGov_v.3$core_other))
+prop.table(table(WhoGov_v.3$core_other, WhoGov_v.3$gender),1)
+```
+## 9.9 table classifications for observations with core_other == 1
+```{r}
+WhoGov_v.3 %>%
+  filter(core_other == 1) %>%
+  group_by(classification) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+```
+## 9.10 Using the filter core_other == 1 for creating barplot on classificatin
+making horizontal barplot for classification (y axis) and count (x axis)
+adding numbers of observations as text to the bars, written over the bar
+x scale description horizontal
+```{r}
+sub_core <- WhoGov_v.3 %>%
+  filter(core_other == 1) %>%
+  group_by(classification) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+x <- ggplot(sub_core, aes(x = count, y = classification)) + 
+  geom_bar(stat = "identity", width = 0.8) +  
+  geom_text(aes(label = count), 
+            position = position_nudge(x = 0.5), 
+            color = "black", 
+            hjust = 0, 
+            size = 2) +
+  labs(title = "Political ranks among core_others",
+       x = "Number of entries",
+       y = "Classification") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8),  
+        axis.title.x = element_text(size = 12), 
+        axis.title.y = element_text(size = 12))  
+  ggsave("ranks_core_other.png", plot = x)
+```
+
+
+
+
+
+
