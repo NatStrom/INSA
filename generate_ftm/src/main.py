@@ -18,7 +18,6 @@ OPEN_AI_SEED = 42
 
 class SanctionedEntities(BaseModel):
     entities: list[ListedEntity]
-    )
 
 
 async def extract_entities(
