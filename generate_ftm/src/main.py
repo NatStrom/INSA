@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 from typing import Type
+from itertools import batched  # python 3.12+
 
 import httpx
 import instructor
@@ -12,6 +13,7 @@ from models import ListedEntity
 
 
 OPEN_AI_SEED = 42
+CHUNK_DELIMITER = "\n\n"
 
 
 class SanctionedEntities(BaseModel):
@@ -37,6 +39,32 @@ async def extract_entities(
     return response
 
 
+async def process_batch(
+    batch: list[str],
+    client: AsyncInstructor,
+) -> list[ListedEntity]:
+    text = CHUNK_DELIMITER.join(batch)
+    result: SanctionedEntities = await extract_entities(
+        text, client, SanctionedEntities
+    )
+    return result.entities
+
+
+async def process_chunks(
+    chunks: list[str], client: AsyncInstructor, chunk_size: int = 5
+) -> list[ListedEntity]:
+    """synchronous processing of chunks"""
+    all_entities = []
+    for i, batch in enumerate(batched(chunks, chunk_size)):
+        print(f"Processing batch {i+1} of {len(chunks)//chunk_size}")
+        text = "\n\n".join(batch)
+        result: SanctionedEntities = await extract_entities(
+            text, client, SanctionedEntities
+        )
+        all_entities.extend(result.entities)
+    return all_entities
+
+
 async def main() -> None:
     from argparse import ArgumentParser
 
@@ -58,15 +86,10 @@ async def main() -> None:
     with open(args.input, "r", encoding="latin-1") as f:
         content = f.read()
 
-    sections = content.split("\n\n")
-    sections = sections[:5]
-    text = "\n\n".join(sections)
+    sections = content.split(CHUNK_DELIMITER)
+    entities = await process_chunks(sections, client)
 
-    result: SanctionedEntities = await extract_entities(
-        text, client, SanctionedEntities
-    )
-
-    records = [e.model_dump_json() for e in result.entities]
+    records = [e.model_dump_json() for e in entities]
     with open(args.output, "w", encoding="utf-8") as f:
         for record in records:
             f.write(record)
