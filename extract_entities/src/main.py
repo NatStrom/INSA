@@ -1,13 +1,13 @@
 import asyncio
+from itertools import batched  # python 3.12+
 from pathlib import Path
 from typing import Type
-from itertools import batched  # python 3.12+
 
 import httpx
 import instructor
 import openai
 from instructor import AsyncInstructor
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from models import ListedEntity
 
@@ -16,7 +16,8 @@ OPEN_AI_SEED = 42
 CHUNK_DELIMITER = "\n\n"
 
 
-class SanctionedEntities(BaseModel):
+class ResultsBatch(BaseModel):
+    model_config = ConfigDict(title="SanctionedEntities")
     entities: list[ListedEntity]
 
 
@@ -46,17 +47,6 @@ async def extract_entities(
     return response
 
 
-async def process_batch(
-    batch: list[str],
-    client: AsyncInstructor,
-) -> list[ListedEntity]:
-    text = CHUNK_DELIMITER.join(batch)
-    result: SanctionedEntities = await extract_entities(
-        text, client, SanctionedEntities
-    )
-    return result.entities
-
-
 async def process_chunks(
     chunks: list[str], client: AsyncInstructor, chunk_size: int = 4
 ) -> list[ListedEntity]:
@@ -64,10 +54,8 @@ async def process_chunks(
     all_entities = []
     for i, batch in enumerate(batched(chunks, chunk_size)):
         print(f"Processing batch {i+1} of {len(chunks)//chunk_size}")
-        text = "\n\n".join(batch)
-        result: SanctionedEntities = await extract_entities(
-            text, client, SanctionedEntities
-        )
+        text = CHUNK_DELIMITER.join(batch)
+        result: ResultsBatch = await extract_entities(text, client, ResultsBatch)
         all_entities.extend(result.entities)
     return all_entities
 
