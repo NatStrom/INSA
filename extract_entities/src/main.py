@@ -34,8 +34,7 @@ async def extract_entities(
                     "You are an expert in the field of sanctions. Your expertise lies in understanding the official documents of sanctions authorities, and extracting the entities that are listed in the document."
                     "You are given a text that contains a list of entities that are listed in an official document of a sanctions authority."
                     "Your job is to extract the entities from the text and return them in a list of entities."
-                    "The entities should be in the provided JSON schema."
-                    "```"
+                    "The entities should be in the provided JSON schema. Now, extract the entities from the following text:\n"
                 ),
             },
             {"role": "user", "content": text},
