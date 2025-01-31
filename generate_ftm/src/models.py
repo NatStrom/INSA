@@ -1,7 +1,16 @@
+from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Literal, ClassVar, Any
 from datetime import date, datetime
 from pydantic.json import timedelta_isoformat
+
+
+class EntityType(Enum):
+    vessel = "vessel"
+    person = "person"
+    organization = "organization"
+    company = "company"
+    aircraft = "aircraft"
 
 
 class ListedEntity(BaseModel):
@@ -9,12 +18,8 @@ class ListedEntity(BaseModel):
 
     individual_id: Optional[int] = Field(default=None, init=False)
     entity_counter: ClassVar[int] = 0
-    entity_type: Literal["vessel", "person", "organization", "company", "aircraft"]
+    entity_type: EntityType = Field(description="type of entity")
     name: str = Field(description="name of entity")
-    aliases: Optional[list[str]] = Field(default=None, description="aliases for entity")
-    DOB: Optional[date] = Field(default=None, description="date of birth")
-    POB: Optional[str] = Field(default=None, description="place of birth")
-    citizenship: Optional[str] = Field(default=None, description="citizenship")
 
     event_type: Optional[Literal["listing", "delisting"]] = Field(
         default=None,
@@ -52,30 +57,41 @@ class ListedEntity(BaseModel):
 
 
 class AdditionalInfo(BaseModel):
-    """Additional information about the entity, to be added to the entity on a separate run."""
-
     address: Optional[str] = Field(
         default=None, description="adress(es) associated with the entity"
     )
-    nationality: Optional[str] = Field(default=None, description="nationality")
-    gender: Optional[Literal["m", "f", "d"]] = Field(
-        default=None, description="gender of the person"
-    )
-    passport_id: Optional[int] = Field(default=None, description="id of passport")
-    business_id: Optional[str] = Field(default=None, description="business id")
     telephone: Optional[str] = Field(default=None, description="telephone associated")
     email: Optional[str] = Field(default=None, description="email associated")
     website: Optional[str] = Field(default=None, description="website associated")
-    place_registry: Optional[str] = Field(
-        default=None,
-        description="place the entity is registered if a business of company",
-    )
     associated_individual: Optional[str] = Field(
         default=None, description="associated ownership"
     )
     associated_other: Optional[str] = Field(
         default=None, description="other associated entities like governments etc"
     )
+    aliases: Optional[list[str]] = Field(default=None, description="aliases for entity")
+
+
+class PersonAdditionalInfo(BaseModel):
+    """Additional information about the entity, to be added to the entity on a separate run."""
+
+    nationality: Optional[str] = Field(default=None, description="nationality")
+    gender: Optional[Literal["m", "f", "d"]] = Field(
+        default=None, description="gender of the person"
+    )
+    passport_id: Optional[int] = Field(default=None, description="id of passport")
+    DOB: Optional[date] = Field(default=None, description="date of birth")
+    POB: Optional[str] = Field(default=None, description="place of birth")
+    citizenship: Optional[str] = Field(default=None, description="citizenship")
+
+
+class CompanyAdditionalInfo(BaseModel):
+    business_id: Optional[str] = Field(default=None, description="business id")
+    place_registry: Optional[str] = Field(
+        default=None,
+        description="place the entity is registered if a business of company",
+    )
+    """
     iso_nationality: Optional[str] = Field(
         default=None,
         description="iso 3 codes created from address, citizenship and registry country names",
@@ -96,3 +112,4 @@ class AdditionalInfo(BaseModel):
         default=None,
         description="iso 3 codes created from address, citizenship and registry country names",
     )
+    """
