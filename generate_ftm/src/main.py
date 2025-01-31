@@ -28,12 +28,20 @@ async def extract_entities(
     response = await client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert in the field of sanctions. Your expertise lies in understanding the official documents of sanctions authorities, and extracting the entities that are listed in the document."
+                    "You are given a text that contains a list of entities that are listed in an official document of a sanctions authority."
+                    "Your job is to extract the entities from the text and return them in a list of entities."
+                    "The entities should be in the provided JSON schema."
+                    "```"
+                ),
+            },
             {"role": "user", "content": text},
         ],
         response_model=response_model,
-        strict=False,
-        max_retries=1,
+        strict=False,  # allow extra fields and ignore them later
         seed=OPEN_AI_SEED,
     )
     return response
@@ -51,7 +59,7 @@ async def process_batch(
 
 
 async def process_chunks(
-    chunks: list[str], client: AsyncInstructor, chunk_size: int = 5
+    chunks: list[str], client: AsyncInstructor, chunk_size: int = 4
 ) -> list[ListedEntity]:
     """synchronous processing of chunks"""
     all_entities = []
@@ -75,7 +83,7 @@ async def main() -> None:
 
     client: AsyncInstructor = instructor.from_openai(
         openai.AsyncOpenAI(
-            max_retries=5,
+            max_retries=1,
             timeout=30.0,  # total operation timeout
             http_client=httpx.AsyncClient(
                 timeout=httpx.Timeout(connect=5.0, read=30.0, write=30.0, pool=30.0)
