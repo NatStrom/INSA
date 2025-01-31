@@ -1,7 +1,8 @@
 import asyncio
 import json
+from datetime import date, datetime
 from pathlib import Path
-from typing import Literal, Type
+from typing import Type
 
 import httpx
 import instructor
@@ -9,20 +10,15 @@ import openai
 from instructor import AsyncInstructor
 from pydantic import BaseModel
 
+from models import ListedEntity
+
 
 OPEN_AI_SEED = 42
 
 
-class SanctionedEntity(BaseModel):
-    name: str
-    alias: str | None = None
-    country: str
-    address: str | None = None
-    type: Literal["Person", "Organization"]
-
-
 class SanctionedEntities(BaseModel):
-    entities: list[SanctionedEntity]
+    entities: list[ListedEntity]
+    )
 
 
 async def extract_entities(
@@ -69,13 +65,15 @@ async def main() -> None:
     sections = sections[:5]
     text = "\n\n".join(sections)
 
-    entities: SanctionedEntities = await extract_entities(
+    result: SanctionedEntities = await extract_entities(
         text, client, SanctionedEntities
     )
 
-    records = [e.model_dump() for e in entities.entities]
+    records = [e.model_dump_json() for e in result.entities]
     with open(args.output, "w", encoding="utf-8") as f:
-        f.write(json.dumps(records, indent=2))
+        for record in records:
+            f.write(record)
+            f.write("\n")
 
 
 if __name__ == "__main__":
