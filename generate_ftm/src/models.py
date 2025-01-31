@@ -47,7 +47,6 @@ class ListedEntity(BaseModel):
     )
 
     def model_post_init(self, __context: Any) -> None:
-        print(self)
         self.individual_id = self.__class__.entity_counter
         self.__class__.entity_counter += 1
 
